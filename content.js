@@ -21,7 +21,8 @@
     retreatTimeout: null,
     hideTimeout: null,
     activeBanner: null,
-    side: "right"
+    side: "right",
+    isCelebrating: false
   };
 
   const root = document.createElement("div");
@@ -211,15 +212,9 @@
 
   function updateStageVisibility() {
     const hasBanner = Boolean(state.activeBanner && state.activeBanner.isConnected);
-    const hasCookies = state.cookies.size > 0;
-    const shouldShow = hasBanner || hasCookies;
+    const shouldShowMouse = state.cookies.size > 0 || state.isCelebrating;
 
-    root.classList.toggle("is-active", shouldShow);
-
-    if (!shouldShow) {
-      stage.style.bottom = "0px";
-      return;
-    }
+    root.classList.toggle("has-mouse", shouldShowMouse);
 
     let bottomOffset = 0;
     if (hasBanner) {
@@ -257,6 +252,8 @@
   function triggerHeartBurst() {
     clearTimeout(state.heartTimeout);
     clearTimeout(state.retreatTimeout);
+    state.isCelebrating = true;
+    updateStageVisibility();
 
     mouse.classList.add("is-fed");
     hearts.innerHTML = "";
@@ -279,7 +276,9 @@
       mouse.classList.add("is-hidden");
       window.setTimeout(() => {
         mouse.classList.remove("is-hidden");
+        state.isCelebrating = false;
         scheduleHideCheck();
+        updateStageVisibility();
       }, 1200);
     }, 300);
   }
