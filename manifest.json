@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "Mouse Cookies",
+  "version": "0.2.0",
+  "description": "A tiny mouse that appears when cookie banners show up and eats draggable cookie treats.",
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "css": [
+        "content.css"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}

@@ -1,0 +1,262 @@
+#mouse-cookies-root {
+  all: initial;
+}
+
+#mouse-cookies-root,
+#mouse-cookies-root * {
+  box-sizing: border-box;
+  font-family: "Trebuchet MS", "Arial Rounded MT Bold", sans-serif;
+}
+
+#mouse-cookies-root {
+  opacity: 0;
+  transition: opacity 180ms ease;
+}
+
+#mouse-cookies-root.is-active {
+  opacity: 1;
+}
+
+.mouse-cookies-stage {
+  position: fixed;
+  inset: auto 0 0 0;
+  height: 140px;
+  pointer-events: none;
+  z-index: 2147483647;
+  transition: bottom 220ms ease;
+}
+
+.mouse-cookies-hole {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 154px;
+  height: 74px;
+  transform: translateX(-50%) translateY(86px);
+  border-radius: 92px 92px 0 0;
+  background:
+    radial-gradient(circle at 50% 120%, rgba(16, 9, 7, 0.95), rgba(31, 19, 17, 1) 60%, rgba(55, 37, 31, 1) 100%);
+  box-shadow:
+    0 -18px 40px rgba(39, 24, 19, 0.25),
+    inset 0 16px 20px rgba(255, 255, 255, 0.04);
+  pointer-events: auto;
+  transition: transform 260ms ease;
+}
+
+#mouse-cookies-root.is-active .mouse-cookies-hole {
+  transform: translateX(-50%) translateY(0);
+}
+
+#mouse-cookies-root.side-left .mouse-cookies-hole {
+  left: 24px;
+  right: auto;
+  transform: translateX(0) translateY(86px);
+}
+
+#mouse-cookies-root.side-left.is-active .mouse-cookies-hole {
+  transform: translateX(0) translateY(0);
+}
+
+#mouse-cookies-root.side-right .mouse-cookies-hole {
+  left: auto;
+  right: 24px;
+  transform: translateX(0) translateY(86px);
+}
+
+#mouse-cookies-root.side-right.is-active .mouse-cookies-hole {
+  transform: translateX(0) translateY(0);
+}
+
+.mouse-cookies-hole-shadow {
+  position: absolute;
+  inset: auto 12px -14px;
+  height: 20px;
+  border-radius: 999px;
+  background: rgba(28, 16, 14, 0.3);
+  filter: blur(8px);
+}
+
+.mouse-cookies-mouse {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 92px;
+  height: 52px;
+  transform: translateX(-50%) translateY(3px);
+  transform-origin: 50% 100%;
+  border-radius: 92px 92px 12px 12px;
+  background:
+    radial-gradient(circle at 50% 15%, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0) 32%),
+    linear-gradient(180deg, #a5a09e 0%, #8a8483 60%, #6e6766 100%);
+  box-shadow: inset 0 -10px 18px rgba(63, 57, 56, 0.35);
+  transition: transform 220ms ease, opacity 220ms ease;
+}
+
+.mouse-cookies-mouse.is-fed {
+  transform: translateX(-50%) translateY(0) scale(1.05);
+}
+
+.mouse-cookies-mouse.is-hidden {
+  transform: translateX(-50%) translateY(60px) scale(0.92);
+  opacity: 0;
+}
+
+.mouse-cookies-ear,
+.mouse-cookies-eye,
+.mouse-cookies-nose,
+.mouse-cookies-cookie,
+.mouse-cookies-heart {
+  position: absolute;
+}
+
+.mouse-cookies-ear {
+  top: -9px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 50%, #f6b1bb 0%, #f0a0af 40%, #8f7c7e 42%, #8f7c7e 100%);
+}
+
+.mouse-cookies-ear-left {
+  left: 16px;
+}
+
+.mouse-cookies-ear-right {
+  right: 16px;
+}
+
+.mouse-cookies-eye {
+  top: 18px;
+  width: 5px;
+  height: 8px;
+  border-radius: 999px;
+  background: #1d1616;
+}
+
+.mouse-cookies-eye-left {
+  left: 27px;
+}
+
+.mouse-cookies-eye-right {
+  right: 27px;
+}
+
+.mouse-cookies-nose {
+  left: 50%;
+  bottom: 11px;
+  width: 11px;
+  height: 8px;
+  transform: translateX(-50%);
+  border-radius: 50% 50% 60% 60%;
+  background: #f3a0a6;
+  box-shadow: 0 0 0 2px rgba(71, 55, 56, 0.08);
+}
+
+.mouse-cookies-cookie {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 32% 28%, #f7deb2 0%, #f2cf92 38%, #d79a50 100%);
+  box-shadow:
+    0 10px 18px rgba(86, 52, 10, 0.24),
+    inset 0 -7px 10px rgba(124, 67, 17, 0.28);
+  pointer-events: auto;
+  cursor: grab;
+  opacity: 0;
+  transform: translateY(18px) scale(0.8);
+  transition: transform 180ms ease, opacity 180ms ease;
+}
+
+.mouse-cookies-cookie.is-visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.mouse-cookies-cookie.is-dragging {
+  cursor: grabbing;
+  transform: scale(1.05);
+}
+
+.mouse-cookies-cookie.is-removing {
+  opacity: 0;
+  transform: scale(0.6);
+}
+
+.mouse-cookies-chip {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #6d3a18;
+}
+
+.chip-1 {
+  left: 11px;
+  top: 14px;
+}
+
+.chip-2 {
+  left: 26px;
+  top: 9px;
+}
+
+.chip-3 {
+  left: 31px;
+  top: 23px;
+}
+
+.chip-4 {
+  left: 14px;
+  top: 30px;
+}
+
+.chip-5 {
+  left: 24px;
+  top: 35px;
+}
+
+.mouse-cookies-hearts {
+  position: absolute;
+  left: 50%;
+  bottom: 52px;
+  width: 140px;
+  height: 76px;
+  transform: translateX(-50%);
+}
+
+#mouse-cookies-root.side-left .mouse-cookies-hearts {
+  left: 24px;
+  transform: none;
+}
+
+#mouse-cookies-root.side-right .mouse-cookies-hearts {
+  left: auto;
+  right: 24px;
+  transform: none;
+}
+
+.mouse-cookies-heart {
+  bottom: 8px;
+  font-size: 18px;
+  color: #ff5b7f;
+  opacity: 0;
+  transform: translateY(0) scale(0.5);
+  animation: mouse-cookies-heart-float 900ms ease forwards;
+}
+
+@keyframes mouse-cookies-heart-float {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(0.5);
+  }
+
+  15% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateY(-56px) scale(1.1);
+  }
+}
