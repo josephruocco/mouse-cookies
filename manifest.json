@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Mouse Cookies",
-  "version": "0.2.0",
-  "description": "A tiny mouse that appears when cookie banners show up and eats draggable cookie treats.",
+  "version": "0.3.0",
+  "description": "A tiny mouse that appears only on cookie banners, snatches an accept cookie, and leaves.",
   "content_scripts": [
     {
       "matches": [

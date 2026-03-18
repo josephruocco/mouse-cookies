@@ -12,7 +12,6 @@ Chrome extension prototype for the cookie-banner mouse gag.
 ## Current behavior
 
 - Detects likely cookie banners on the page.
-- Keeps the mouse hidden until a banner is visible.
-- Moves the mouse hole upward when a bottom banner would overlap it.
-- Spawns draggable cookie treats when you click an accept-style button inside the banner.
-- Feeding the mouse plays hearts, then the mouse ducks away.
+- Shows nothing at all unless a cookie banner is visible.
+- Sends in a tiny mouse from the left or right edge when a banner appears.
+- On an accept-style click, the mouse grabs a tiny cookie, does a quick nibble reaction, and exits.

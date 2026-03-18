@@ -5,9 +5,9 @@
   window.__mouseCookiesInjected = true;
 
   const ROOT_ID = "mouse-cookies-root";
-  const COOKIE_SIZE = 52;
-  const MAX_COOKIES = 6;
   const SCAN_INTERVAL_MS = 1200;
+  const ENTER_DELAY_MS = 60;
+  const EXIT_DURATION_MS = 420;
   const COOKIE_ACCEPT_PATTERN =
     /\b(accept|accept all|allow|agree|consent|got it|ok|okay|continue|enable)\b/i;
   const COOKIE_DECISION_PATTERN =
@@ -16,13 +16,15 @@
     /\b(cookie|cookies|consent|privacy|tracking|gdpr|ccpa)\b/i;
 
   const state = {
-    cookies: new Set(),
-    heartTimeout: null,
-    retreatTimeout: null,
-    hideTimeout: null,
     activeBanner: null,
+    isPresent: false,
+    isSnatching: false,
     side: "right",
-    isCelebrating: false
+    restPoint: null,
+    enterTimeout: null,
+    hideTimeout: null,
+    exitTimeout: null,
+    cleanupTimeout: null
   };
 
   const root = document.createElement("div");
@@ -30,25 +32,24 @@
   root.setAttribute("aria-hidden", "true");
   root.innerHTML = `
     <div class="mouse-cookies-stage">
-      <div class="mouse-cookies-hole">
-        <div class="mouse-cookies-hole-shadow"></div>
-        <div class="mouse-cookies-mouse">
+      <div class="mouse-cookies-actor">
+        <div class="mouse-cookies-cookie"></div>
+        <div class="mouse-cookies-body">
           <div class="mouse-cookies-ear mouse-cookies-ear-left"></div>
           <div class="mouse-cookies-ear mouse-cookies-ear-right"></div>
           <div class="mouse-cookies-eye mouse-cookies-eye-left"></div>
           <div class="mouse-cookies-eye mouse-cookies-eye-right"></div>
           <div class="mouse-cookies-nose"></div>
+          <div class="mouse-cookies-tail"></div>
         </div>
       </div>
-      <div class="mouse-cookies-hearts"></div>
+      <div class="mouse-cookies-burst"></div>
     </div>
   `;
   document.documentElement.appendChild(root);
 
-  const stage = root.querySelector(".mouse-cookies-stage");
-  const hole = root.querySelector(".mouse-cookies-hole");
-  const mouse = root.querySelector(".mouse-cookies-mouse");
-  const hearts = root.querySelector(".mouse-cookies-hearts");
+  const actor = root.querySelector(".mouse-cookies-actor");
+  const burst = root.querySelector(".mouse-cookies-burst");
 
   function normalizeText(value) {
     return (value || "").replace(/\s+/g, " ").trim().toLowerCase();
@@ -72,11 +73,6 @@
   function applyMouseSide() {
     root.classList.remove("side-left", "side-right");
     root.classList.add(`side-${state.side}`);
-  }
-
-  function setCookiePosition(cookie, x, y) {
-    cookie.style.left = `${x}px`;
-    cookie.style.top = `${y}px`;
   }
 
   function isVisibleElement(element) {
@@ -139,21 +135,25 @@
     const hintText = getElementHintText(element);
     const hasTextContext = COOKIE_CONTEXT_PATTERN.test(text);
     const hasHintContext = hasCookieHint(element);
+
     if (!hasTextContext && !hasHintContext) {
       return 0;
     }
 
     const rect = element.getBoundingClientRect();
-    let score = 0;
     const style = window.getComputedStyle(element);
     const role = normalizeText(element.getAttribute("role"));
-    const buttonCount = element.querySelectorAll("button, [role='button'], a, input[type='button'], input[type='submit']").length;
+    const buttonCount = element.querySelectorAll(
+      "button, [role='button'], a, input[type='button'], input[type='submit']"
+    ).length;
     const isFixedLike = style.position === "fixed" || style.position === "sticky";
     const edgeAnchored = isEdgeAnchored(rect);
     const isDialogLike =
       role === "dialog" ||
       role === "alertdialog" ||
       element.getAttribute("aria-modal") === "true";
+
+    let score = 0;
 
     if (hasHintContext) {
       score += 4;
@@ -202,179 +202,133 @@
     for (const element of candidates) {
       const score = getBannerScore(element);
       if (score > winnerScore) {
-        winnerScore = score;
         winner = element;
+        winnerScore = score;
       }
     }
 
     return winnerScore >= 7 ? winner : null;
   }
 
-  function updateStageVisibility() {
-    const hasBanner = Boolean(state.activeBanner && state.activeBanner.isConnected);
-    const shouldShowMouse = state.cookies.size > 0 || state.isCelebrating;
+  function getRestPoint(banner) {
+    const rect = banner.getBoundingClientRect();
+    const y = clamp(rect.bottom - 34, 14, window.innerHeight - 46);
 
-    root.classList.toggle("has-mouse", shouldShowMouse);
-
-    let bottomOffset = 0;
-    if (hasBanner) {
-      const rect = state.activeBanner.getBoundingClientRect();
-      if (rect.top >= window.innerHeight * 0.45) {
-        bottomOffset = clamp(window.innerHeight - rect.top + 10, 0, 280);
-      }
+    if (state.side === "left") {
+      return { x: 18, y };
     }
 
-    stage.style.bottom = `${bottomOffset}px`;
+    return { x: window.innerWidth - 90, y };
+  }
+
+  function getOffscreenPoint(y = 24) {
+    const safeY = clamp(y, 8, window.innerHeight - 46);
+    if (state.side === "left") {
+      return { x: -110, y: safeY };
+    }
+
+    return { x: window.innerWidth + 32, y: safeY };
+  }
+
+  function setActorPosition(point) {
+    actor.style.setProperty("--mouse-x", `${Math.round(point.x)}px`);
+    actor.style.setProperty("--mouse-y", `${Math.round(point.y)}px`);
+  }
+
+  function clearTravelTimers() {
+    clearTimeout(state.enterTimeout);
+    clearTimeout(state.exitTimeout);
+  }
+
+  function clearAllTimers() {
+    clearTravelTimers();
+    clearTimeout(state.cleanupTimeout);
+  }
+
+  function enterMouse(point) {
+    clearTravelTimers();
+    state.restPoint = point;
+    state.isPresent = true;
+
+    root.classList.add("has-mouse");
+    root.classList.remove("is-leaving");
+    actor.classList.remove("is-snacking", "has-cookie");
+    setActorPosition(getOffscreenPoint(point.y));
+
+    state.enterTimeout = window.setTimeout(() => {
+      setActorPosition(point);
+    }, ENTER_DELAY_MS);
+  }
+
+  function leaveMouse() {
+    if (!state.isPresent) {
+      root.classList.remove("has-mouse", "is-leaving");
+      return;
+    }
+
+    clearTravelTimers();
+    root.classList.add("is-leaving");
+    actor.classList.remove("is-snacking", "has-cookie");
+    setActorPosition(getOffscreenPoint((state.restPoint || { y: 24 }).y));
+
+    state.exitTimeout = window.setTimeout(() => {
+      state.isPresent = false;
+      state.restPoint = null;
+      root.classList.remove("has-mouse", "is-leaving");
+    }, EXIT_DURATION_MS);
+  }
+
+  function syncMouseToBanner() {
+    if (!state.activeBanner || !state.activeBanner.isConnected) {
+      if (!state.isSnatching) {
+        leaveMouse();
+      }
+      return;
+    }
+
+    const nextPoint = getRestPoint(state.activeBanner);
+    state.restPoint = nextPoint;
+
+    if (!state.isPresent && !state.isSnatching) {
+      enterMouse(nextPoint);
+      return;
+    }
+
+    if (!state.isSnatching) {
+      setActorPosition(nextPoint);
+    }
   }
 
   function scheduleHideCheck() {
     clearTimeout(state.hideTimeout);
     state.hideTimeout = window.setTimeout(() => {
       state.activeBanner = findActiveBanner();
-      updateStageVisibility();
+      syncMouseToBanner();
     }, 650);
   }
 
   function refreshBannerState() {
     state.activeBanner = findActiveBanner();
-    updateStageVisibility();
+    syncMouseToBanner();
   }
 
-  function removeCookie(cookie) {
-    state.cookies.delete(cookie);
-    cookie.classList.add("is-removing");
+  function spawnCrumbs(targetRect) {
+    burst.innerHTML = "";
+    const baseX = targetRect.left + targetRect.width / 2;
+    const baseY = targetRect.top + targetRect.height / 2;
+
+    for (let index = 0; index < 4; index += 1) {
+      const crumb = document.createElement("div");
+      crumb.className = "mouse-cookies-crumb";
+      crumb.style.left = `${baseX + (index - 1.5) * 8}px`;
+      crumb.style.top = `${baseY - 4 + (index % 2) * 5}px`;
+      crumb.style.animationDelay = `${index * 45}ms`;
+      burst.appendChild(crumb);
+    }
+
     window.setTimeout(() => {
-      cookie.remove();
-      updateStageVisibility();
-    }, 220);
-  }
-
-  function triggerHeartBurst() {
-    clearTimeout(state.heartTimeout);
-    clearTimeout(state.retreatTimeout);
-    state.isCelebrating = true;
-    updateStageVisibility();
-
-    mouse.classList.add("is-fed");
-    hearts.innerHTML = "";
-
-    for (let index = 0; index < 3; index += 1) {
-      const heart = document.createElement("div");
-      heart.className = "mouse-cookies-heart";
-      heart.textContent = "❤";
-      heart.style.left = `${38 + index * 22}%`;
-      heart.style.animationDelay = `${index * 80}ms`;
-      hearts.appendChild(heart);
-    }
-
-    state.heartTimeout = window.setTimeout(() => {
-      hearts.innerHTML = "";
-      mouse.classList.remove("is-fed");
-    }, 1300);
-
-    state.retreatTimeout = window.setTimeout(() => {
-      mouse.classList.add("is-hidden");
-      window.setTimeout(() => {
-        mouse.classList.remove("is-hidden");
-        state.isCelebrating = false;
-        scheduleHideCheck();
-        updateStageVisibility();
-      }, 1200);
-    }, 300);
-  }
-
-  function intersectsHole(cookie) {
-    const cookieRect = cookie.getBoundingClientRect();
-    const holeRect = hole.getBoundingClientRect();
-
-    return !(
-      cookieRect.right < holeRect.left ||
-      cookieRect.left > holeRect.right ||
-      cookieRect.bottom < holeRect.top ||
-      cookieRect.top > holeRect.bottom
-    );
-  }
-
-  function attachDrag(cookie) {
-    let pointerId = null;
-    let offsetX = 0;
-    let offsetY = 0;
-
-    function onPointerMove(event) {
-      if (event.pointerId !== pointerId) {
-        return;
-      }
-
-      const x = clamp(event.clientX - offsetX, 8, window.innerWidth - COOKIE_SIZE - 8);
-      const y = clamp(event.clientY - offsetY, 8, window.innerHeight - COOKIE_SIZE - 8);
-      setCookiePosition(cookie, x, y);
-    }
-
-    function onPointerUp(event) {
-      if (event.pointerId !== pointerId) {
-        return;
-      }
-
-      window.removeEventListener("pointermove", onPointerMove, true);
-      window.removeEventListener("pointerup", onPointerUp, true);
-      window.removeEventListener("pointercancel", onPointerUp, true);
-      cookie.classList.remove("is-dragging");
-      pointerId = null;
-
-      if (intersectsHole(cookie)) {
-        triggerHeartBurst();
-        removeCookie(cookie);
-      }
-    }
-
-    cookie.addEventListener("pointerdown", (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-
-      pointerId = event.pointerId;
-      const rect = cookie.getBoundingClientRect();
-      offsetX = event.clientX - rect.left;
-      offsetY = event.clientY - rect.top;
-
-      cookie.classList.add("is-dragging");
-      cookie.setPointerCapture(pointerId);
-
-      window.addEventListener("pointermove", onPointerMove, true);
-      window.addEventListener("pointerup", onPointerUp, true);
-      window.addEventListener("pointercancel", onPointerUp, true);
-    });
-  }
-
-  function spawnCookieTreat(originX, originY) {
-    if (state.cookies.size >= MAX_COOKIES) {
-      const oldest = state.cookies.values().next().value;
-      if (oldest) {
-        removeCookie(oldest);
-      }
-    }
-
-    const cookie = document.createElement("div");
-    cookie.className = "mouse-cookies-cookie";
-    cookie.innerHTML = `
-      <div class="mouse-cookies-chip chip-1"></div>
-      <div class="mouse-cookies-chip chip-2"></div>
-      <div class="mouse-cookies-chip chip-3"></div>
-      <div class="mouse-cookies-chip chip-4"></div>
-      <div class="mouse-cookies-chip chip-5"></div>
-    `;
-
-    const startX = clamp(originX - COOKIE_SIZE / 2, 12, window.innerWidth - COOKIE_SIZE - 12);
-    const startY = clamp(originY - COOKIE_SIZE / 2, 12, window.innerHeight - COOKIE_SIZE - 120);
-    setCookiePosition(cookie, startX, startY);
-    stage.appendChild(cookie);
-    state.cookies.add(cookie);
-    updateStageVisibility();
-
-    requestAnimationFrame(() => {
-      cookie.classList.add("is-visible");
-    });
-
-    attachDrag(cookie);
+      burst.innerHTML = "";
+    }, 700);
   }
 
   function getClickableTarget(target) {
@@ -417,6 +371,48 @@
     return false;
   }
 
+  function runAcceptSequence(targetRect) {
+    const banner = state.activeBanner || findActiveBanner();
+    if (banner && !state.isPresent) {
+      enterMouse(getRestPoint(banner));
+    }
+
+    clearAllTimers();
+    state.isSnatching = true;
+
+    const chasePoint = {
+      x:
+        state.side === "left"
+          ? clamp(targetRect.left - 12, 8, window.innerWidth - 72)
+          : clamp(targetRect.right - 58, 8, window.innerWidth - 72),
+      y: clamp(targetRect.top + targetRect.height / 2 - 14, 8, window.innerHeight - 44)
+    };
+
+    root.classList.add("has-mouse");
+    state.isPresent = true;
+    state.restPoint = chasePoint;
+    actor.classList.add("has-cookie");
+    actor.classList.remove("is-snacking");
+    setActorPosition(chasePoint);
+
+    state.enterTimeout = window.setTimeout(() => {
+      actor.classList.add("is-snacking");
+      spawnCrumbs(targetRect);
+    }, 240);
+
+    state.exitTimeout = window.setTimeout(() => {
+      actor.classList.remove("is-snacking");
+      leaveMouse();
+    }, 760);
+
+    state.cleanupTimeout = window.setTimeout(() => {
+      state.isSnatching = false;
+      actor.classList.remove("has-cookie", "is-snacking");
+      state.activeBanner = findActiveBanner();
+      syncMouseToBanner();
+    }, 1260);
+  }
+
   document.addEventListener(
     "click",
     (event) => {
@@ -425,15 +421,11 @@
       }
 
       const clickable = getClickableTarget(event.target);
-      const origin = clickable.getBoundingClientRect();
-      const spawnCount = Math.random() > 0.55 ? 2 : 1;
-
-      for (let index = 0; index < spawnCount; index += 1) {
-        const offsetX = (Math.random() - 0.5) * 70;
-        const offsetY = -10 - index * 16;
-        spawnCookieTreat(origin.left + origin.width / 2 + offsetX, origin.top + offsetY);
+      if (!clickable) {
+        return;
       }
 
+      runAcceptSequence(clickable.getBoundingClientRect());
       scheduleHideCheck();
     },
     true
@@ -450,7 +442,8 @@
     attributeFilter: ["style", "class", "hidden", "aria-hidden"]
   });
 
-  window.addEventListener("resize", updateStageVisibility);
+  window.addEventListener("resize", refreshBannerState);
+
   state.side = getPageSide();
   applyMouseSide();
   window.setInterval(refreshBannerState, SCAN_INTERVAL_MS);
